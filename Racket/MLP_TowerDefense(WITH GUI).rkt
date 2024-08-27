@@ -11,7 +11,7 @@
 (define TOWER_SIZE 100)
 (define TOWER_OFFSET (/ (- SIZE TOWER_SIZE) 2))
 
-(define DIFFICULTY_SCALE 0.001)
+(define DIFFICULTY_SCALE 0.005)
 
 (define (scene dc) (send dc set-brush (make-color  0   0   0  0) 'solid) (send dc draw-rectangle 0 0 SCENE_SIZE SCENE_SIZE))
 (define (bg    dc) (send dc set-brush (make-color 166 176 079 1) 'solid) (send dc draw-rectangle 0 0 SCENE_SIZE SCENE_SIZE))
@@ -64,10 +64,11 @@
 )
 
 (define (damage_calc health pos towers)
-  (set! health (- health (get_towers(car pos) (cadr pos) towers)))
-  (if (negative? health)
-      0
-      health
+  (let ([new_health (- health (get_towers(car pos) (cadr pos) towers))]) 
+    (if (negative? new_health)
+        0
+        new_health
+    )
   )
 )
 
@@ -75,20 +76,18 @@
 (define (new_enemy secs)
   (list (list (random (+ 1 (exact-floor (* DIFFICULTY_SCALE secs))) (+ 5 (exact-floor (* DIFFICULTY_SCALE secs)))) 0))
 )
-
-(define last_spawn 10)
         
 (define (update_enemies list_enemies towers secs)
-  (set! list_enemies (map (lambda (enemy)
-         (set! enemy (list-set enemy 0 (damage_calc (car enemy) (list-ref paths (cadr enemy)) towers)))
-         (list-set enemy 1 (+ (cadr enemy) 1))
-  ) list_enemies))
-  (if (or (= last_spawn 10) (zero? (random (- 10 last_spawn))))
-    (begin (set! last_spawn (min (+ 0 (exact-floor (* DIFFICULTY_SCALE secs))) 8))
-      (append list_enemies (new_enemy secs)))
-    (begin (set! last_spawn (+ last_spawn 1))
-      list_enemies)
-  )
+  (let ([new_list_enemies
+         (map (lambda (enemy)
+                (let ([new_enemy
+                  (list-set enemy 0 (damage_calc (car enemy) (list-ref paths (cadr enemy)) towers))])
+                  (list-set new_enemy 1 (+ (cadr new_enemy) 1))
+         )) list_enemies)])
+  (if (zero? (remainder secs (max (- 8 (exact-floor (* DIFFICULTY_SCALE secs))) 2)))
+      (append new_list_enemies (new_enemy secs))
+      new_list_enemies
+  ))
 )
 
 (define (remove_enemies enemies)
@@ -131,11 +130,6 @@
   (index-of towers (list #f (exact-floor(/ (- x TOWER_OFFSET) SIZE)) (exact-floor(/ (- y TOWER_OFFSET) SIZE))))
 )
 
-(define enemies (list ))
-(define towers  (list (list #f 4 1) (list #f 8 2) (list #f 2 4) (list #f 4 5) (list #f 4 7) (list #f 3 9) (list #f 7 6) (list #f 9 6)))
-(define hp    10)
-(define coins 50)
-
 (define frame (new frame%
                    [label "MLP_TowerDefense"]
                    [width  (+ SCENE_SIZE 16)]
@@ -173,6 +167,11 @@
    ))
 )
 
+(define enemies (list ))
+(define towers  (list (list #f 4 1) (list #f 8 2) (list #f 2 4) (list #f 4 5) (list #f 4 7) (list #f 3 9) (list #f 7 6) (list #f 9 6)))
+(define hp    10)
+(define coins 50)
+
 (define (update_game secs)
   (set! enemies (update_enemies enemies towers secs))
   (set! hp    (check_damage enemies hp ))
@@ -181,16 +180,14 @@
   (print_game canva)
 )
 
-
-(send frame show #t)
-(define i 0)
-(define (game_loop)
-  (update_game i)
-  (sleep/yield 0.8)
-  (set! i (+ i 1))
+(define (game_loop secs)
+  (update_game secs)
+  (sleep/yield 0.5)
   (if (not (game_end hp))
-      (game_loop)
+      (game_loop (+ secs 1))
       (show_defeat canva)
   )
 )
-(game_loop)
+
+(send frame show #t)
+(game_loop 0)
