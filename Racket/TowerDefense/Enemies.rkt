@@ -2,7 +2,7 @@
 (require "Towers.rkt")
 (require "Drawing.rkt")
 
-(define DIFFICULTY_SCALE 0.005)
+(define DIFFICULTY_SCALE 0.05)
 
 (define (new_enemy secs)
   (list (list (random (+ 1 (exact-floor (* DIFFICULTY_SCALE secs))) (+ 5 (exact-floor (* DIFFICULTY_SCALE secs)))) 0))
@@ -15,7 +15,7 @@
                   (list-set enemy 0 (damage_calc (car enemy) (list-ref paths (cadr enemy)) towers))])
                   (list-set new_enemy 1 (+ (cadr new_enemy) 1))
          )) list_enemies)])
-  (if (zero? (remainder secs (max (- 8 (exact-floor (* DIFFICULTY_SCALE secs))) 2)))
+  (if (zero? (remainder secs (max (- 8 (exact-floor (* (* DIFFICULTY_SCALE 0.1) secs))) 1)))
       (append new_list_enemies (new_enemy secs))
       new_list_enemies
 )))
@@ -27,7 +27,7 @@
         new_health
 )))
 
-(define (remove_enemies enemies)
+(define (remove_dead_enemies enemies)
   (filter (lambda (enemy) (not (or (zero? (car enemy)) (equal? (cadr enemy) 27)))) enemies)
 )
 

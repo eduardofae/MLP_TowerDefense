@@ -8,7 +8,8 @@
 (define enemies (list ))
 (define towers  (list (list #f 4 1) (list #f 8 2) (list #f 2 4) (list #f 4 5) (list #f 4 7) (list #f 3 9) (list #f 7 6) (list #f 9 6)))
 (define hp    10)
-(define coins 50)
+(define coins 30)
+(define buy_try (list #f 0 0))
 
 ;; GUI
 (define frame (new frame%
@@ -22,53 +23,42 @@
       (let-values ([(pt state) (get-current-mouse-state)])
       (let-values ([(xw yw) (send frame client->screen 0 0)])
       (if (memq 'left state)
-          (buy_tower (- (send pt get-x) xw) (- (send pt get-y) yw))
+          (set! buy_try (list #t (- (send pt get-x) xw) (- (send pt get-y) yw)))
           (void)
       ))))
     (super-new)))
 
 
 (define canva (new my-canvas% [parent frame]
+                   [style (list 'no-autoclear)]
                    [paint-callback
-                    (lambda (canvas dc)
-                      (send dc set-pen (make-color 0 0 0 0) 0 'transparent)
-                      (world_map dc)
-                      (draw_enemies enemies dc)
-                      (draw_towers  towers  dc)
-                      (draw_hp hp dc)
-                      (draw_coins coins dc)
- )]))
-
-
-;; BUY_TOWER CALLBACK
-(define (buy_tower x y)
-  (let ([tower_idx (find_tower towers x y)])
-     (if (and (>= coins 50) (number? tower_idx) (not (car (list-ref towers tower_idx))))
-         (begin (set! coins (- coins 50))
-                (set! towers (list-set towers tower_idx (list #t (cadr (list-ref towers tower_idx)) (caddr (list-ref towers tower_idx))))))
-         (void)
-)))
+                   (lambda (canvas dc)
+                     (send dc set-pen (make-color 0 0 0 0) 0 'transparent))]
+))
 
 ;; Game Loop
 (define (game_end? hp)
   (not (positive? hp))
 )
 
-(define (update_game secs)
-  (set! enemies (update_enemies enemies towers secs))
-  (set! hp      (check_damage enemies hp ))
-  (set! coins   (check_kill enemies coins))
-  (set! enemies (remove_enemies enemies))
-  (draw_game canva)
-)
-
-(define (game_loop secs)
-  (update_game secs)
-  (sleep/yield 0.5)
-  (if (not (game_end? hp))
-      (game_loop (+ secs 1))
-      (show_defeat (send canva get-dc))
+(define (update_game enemies towers hp coins secs)
+  (let*-values ([(enemies) (update_enemies enemies towers secs)]
+                [(hp) (check_damage enemies hp)]
+                [(coins) (check_kill enemies coins)]
+                [(enemies) (remove_dead_enemies enemies)]
+                [(towers coins) (buy_tower (car buy_try) (cadr buy_try) (caddr buy_try) towers coins)])
+    (set! buy_try (list #f 0 0))
+    (draw_game canva enemies towers hp coins)
+    (values enemies towers hp coins)
 ))
 
+(define (game_loop enemies towers hp coins secs)
+  (let-values ([(enemies towers hp coins) (update_game enemies towers hp coins secs)])
+  (sleep/yield 0.5)
+  (if (not (game_end? hp))
+      (game_loop enemies towers hp coins (+ secs 1))
+      (show_defeat (send canva get-dc))
+)))
+
 (send frame show #t)
-(game_loop 0)
+(game_loop enemies towers hp coins 0)

@@ -60,10 +60,16 @@
       (scene dc)
 ))
 
-(define (draw_game canva)
+(define (draw_game canva enemies towers hp coins)
   (send canva on-paint)
   (send canva refresh-now)
-)
+  (let ([dc (send canva get-dc)])
+    (world_map dc)
+    (draw_enemies enemies dc)
+    (draw_towers  towers  dc)
+    (draw_hp hp dc)
+    (draw_coins coins dc)
+))
 
 (define (draw_hp hp dc)
   (send dc set-font (make-font #:size FONT_SIZE #:face "Fira Code"))
